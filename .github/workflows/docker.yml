@@ -1,0 +1,31 @@
+# Nadaję nazwę pipeline.
+name: Docker CI
+# Uruchamiam pipeline po push i pull request.
+on: [push, pull_request]
+# Definiuję zadania CI.
+jobs:
+  # Buduję obraz i uruchamiam testy.
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      # Pobieram kod repozytorium.
+      - uses: actions/checkout@v4
+      # Buduję obraz Docker.
+      - name: Build image
+        run: docker build -t demo-ci ./backend
+      # Uruchamiam testy w kontenerze.
+      - name: Test in container
+        run: docker run --rm demo-ci python -m pytest -q
+      # Loguję się do Docker Hub tylko gdy mam sekrety i wykonuję push na main.
+      - name: Login to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # Wysyłam obraz do rejestru po udanych testach.
+      - name: Push image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker tag demo-ci "${{ secrets.DOCKERHUB_USERNAME }}/docker-zadanie17:latest"
+          docker push "${{ secrets.DOCKERHUB_USERNAME }}/docker-zadanie17:latest"
